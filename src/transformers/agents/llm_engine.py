@@ -226,7 +226,35 @@ class TransformersEngine(HfEngine):
         response = output[0]["generated_text"][-1]["content"]
         return response
 
+from vllm import LLM, SamplingParams
 
+class TransformersEngine(HfEngine):
+    """This engine uses a pre-initialized local text-generation pipeline."""
+
+    def __init__(self, llm: LLM, model_id: Optional[str] = None):
+        super().__init__(model_id)
+        self.llm = llm
+
+    def generate(
+        self,
+        messages: List[Dict[str, str]],
+        stop_sequences: Optional[List[str]] = None,
+        grammar: Optional[str] = None,
+        max_length: int = 1500,
+    ) -> str:
+        # Get clean message list
+        messages = get_clean_message_list(messages, role_conversions=llama_role_conversions)
+
+        # Get LLM output
+        if stop_sequences is not None and len(stop_sequences) > 0:
+            stop_strings = stop_sequences
+        else:
+            stop_strings = None
+
+        outputs = self.llm.generate(prompts=[prompt], sampling_params=self.sampling_params)
+        response= outputs[0].outputs[0].text.strip()
+        return response
+        
 DEFAULT_JSONAGENT_REGEX_GRAMMAR = {
     "type": "regex",
     "value": 'Thought: .+?\\nAction:\\n\\{\\n\\s{4}"action":\\s"[^"\\n]+",\\n\\s{4}"action_input":\\s"[^"\\n]+"\\n\\}\\n<end_action>',
